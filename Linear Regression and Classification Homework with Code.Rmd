@@ -1,0 +1,414 @@
+---
+title: "Linear Regression and Classification Homework"
+output:
+  word_document: default
+  html_notebook: default
+  pdf_document: default
+---
+
+1. This question involves creating a simple linear regression model using the **AutoColision** data set in the **insuranceData** package.
+    a. Perform simple linear regression with **Severity** as the response and **Claim_Count** as the predictor. Print the results. Comment on the output including the following:
+        i. Is there a relationship between the predictor and the response?
+        ii. What proportion of the variability in severity is explained using claim count?
+        iii. Is the relationship between the predictor and the response positive or negative?
+        iv. What is the predicted value of **Severity** when **Claim_Count** is 3?
+        v. What are the associated 95% confidence and prediction intervals?
+        ```{r}
+        library(insuranceData)
+        data("AutoCollision")
+        names(AutoCollision)
+        attach(AutoCollision)
+        summary(AutoCollision)
+        claims.fit <- lm(Severity ~ Claim_Count, data = AutoCollision)
+        summary(claims.fit)
+        ```
+    * There is a relationship between claim count and severity since the p-value for the t-statistic is less than 0.05. 
+    * 11.37% of the variability in severity is explained using claim count.
+    * The relationship is negative since the coefficient for claim count -0.1724.
+
+        ```{r}
+        predict(claims.fit, data.frame(Claim_Count=3), interval = "confidence")
+        predict(claims.fit, data.frame(Claim_Count=3), interval = "prediction")
+        ```
+    
+    b. Plot the response and predictor with the least squares regression line 
+    displayed.
+    
+        ```{r}
+        plot(Claim_Count, Severity)
+        abline(claims.fit, col = "red", lwd = 2)
+        ```
+    
+    c. Create diagnostic plots for the least squares regression fit including a studentized residual plot. Comment on any problems you see with the fit.
+        ```{r}
+        par(mfrow=c(2,2))
+        plot(claims.fit)
+        par(mfrow=c(1,1))
+        plot(predict(claims.fit), rstudent(claims.fit))
+        ```
+
+    * There appears to be an outlier at observation 4 and a few high leverage points.
+
+2. This question involves creating a multiple linear regression model using the **AutoBI** data set in the **insuranceData** package.
+    a. Make **SEATBELT**, **ATTORNEY**, **CLMSEX**, and **CLMINSUR** factors. Note that for **SEATBELT**, **ATTORNEY**, and **CLMINSUR**, 1 represents wearing a seat belt, being represented by an attorney, and being uninsured, while 2 represents the opposite. Also, for **CLMSEX** 1 represents the claimant being male, and 2 represents the claimant being female.
+        ```{r}
+        data("AutoBi")
+        attach(AutoBi)
+        names(AutoBi)
+        summary(AutoBi)
+        AutoBi$SEATBELT <- as.factor(SEATBELT)
+        AutoBi$ATTORNEY <- as.factor(ATTORNEY)
+        AutoBi$CLMSEX <- as.factor(CLMSEX)
+        AutoBi$CLMINSUR <- as.factor(CLMINSUR)
+        summary(AutoBi)
+        ```
+    b. Fit a multiple linear regression model to predict **LOSS** using **CLMAGE**, **SEATBELT**, **CLMSEX**, **CLMINSUR**, **MARITAL**, and **ATTORNEY**. Is there a relationship between the predictors and the response?
+        ```{r}
+        loss.fit <- lm(LOSS~CLMAGE+SEATBELT+CLMSEX+CLMINSUR+MARITAL+ATTORNEY, data = AutoBi)
+        summary(loss.fit)
+        ```
+    * There is a relationship between the predictors and the response since the p-value of the F-statistic is close to zero.
+    c. Which predictors are statistically significant? 
+    * Significant predictors are claimant age, seat belts, and attorney.
+    d. Fit a new multiple linear regression model to predict **LOSS** that only includes statistically significant predictors. Write out the model in equation form being careful to handle the qualitative variables properly.
+        ```{r}
+        loss.fit2 <- lm(LOSS~CLMAGE+SEATBELT+ATTORNEY, data = AutoBi)
+        summary(loss.fit2)
+        ```
+\[
+  \hat{y}_i =
+  \begin{cases}
+                                   5.92352 + 0.06471x_1 + 14.73040 -6.33410 & \text{if claimant $i$ did not wear a seatbelt and was not represented by an attorney} \\
+
+5.92352 + 0.06471x_1 + 14.73040  & \text{if claimant $i$ did not wear a seatbelt and was represented by an attorney} \\ 
+
+5.92352 + 0.06471x_1 - 6.34410  & \text{if claimant $i$ wore a seatbelt and was not represented by an attorney} \\
+
+5.92352 + 0.06471x_1  & \text{if claimant $i$ wore a seatbelt and was represented by an attorney} \\
+  \end{cases}
+\]
+    
+    
+  * There should be four equations based on the model. They output correctly in HTML.
+    e. Using the model from (d), obtain 95% confidence intervals for the coefficients.
+        ```{r}
+        confint(loss.fit2)
+        ```
+    f. Create diagnostic plots. Is there evidence of outliers or high leverage observations in the model from (d)?
+        ```{r}
+        par(mfrow=c(2,2))
+        plot(loss.fit2)
+        par(mfrow=c(1,1))
+        plot(predict(loss.fit2), rstudent(loss.fit2))
+        ```
+
+    * There are a lot of outliers and high leverage points.
+    g. Try a log transformation of the response variable. Comment on the impact the transformation has related to the proportion of the variability of the dependent variable that is explained by the model as well as the impact of the transformation on the presence of outliers and high leverage observations.
+        ```{r}
+        loss.fit3 <- lm(log(LOSS)~CLMAGE+SEATBELT+ATTORNEY, data = AutoBi)
+        summary(loss.fit3)
+        par(mfrow=c(2,2))
+        plot(loss.fit3)
+        par(mfrow=c(1,1))
+        plot(predict(loss.fit3), rstudent(loss.fit3))
+        ```
+    * More of the variability of the losses is explained by the new model. Also, there are fewer outliers. However, there are still many high leverage points.
+
+3. This question involves creating a multiple linear regression model using the injury portion of the **asiacomrisk** data set in the **CASdatasets** package. 
+    a. Fit a multiple linear regression model to predict **FGU** using **TIV**, **DR**, and **CountryStatus**.
+    
+        ```{r}
+        library(CASdatasets)
+        data("asiacomrisk")
+        asiacomrisk <- na.omit(asiacomrisk)
+        attach(asiacomrisk)
+        names(asiacomrisk)
+        summary(asiacomrisk)
+        commloss.fit <- lm(FGU~TIV+DR+CountryStatus, data = asiacomrisk)
+        summary(commloss.fit)
+        ```
+    b. For which of the predictors can you reject the null hypothesis $H_0 : B_J = 0$?
+
+    * You can reject the null hypothesis for **TIV**, **DR**, and **CountryStatus**.
+    
+    c. Fit another multiple regression model that includes **TIV**, **DR**, **CountryStatus**, and an interaction term between **TIV** and **DR**. Which predictors are statistically significant?
+
+        ```{r}
+        commloss.fit2 <- lm(FGU~TIV*DR+CountryStatus, data = asiacomrisk)
+        summary(commloss.fit2)
+        ```
+    * **DR** and **TIV:DR** appear to be statistically significant.
+    
+    d. Fit a new multiple regression model removing predictors that are not statistically significant. Note that you should not remove either of the main effects associated with the interaction term if the interaction term is statistically significant.
+
+        ```{r}
+        commloss.fit3 <- lm(FGU~TIV*DR, data = asiacomrisk)
+        summary(commloss.fit3)
+        ```
+
+    e. Fit a multiple regression model to predict **FGU** using **CountryStatus**, **DR**, **$DR^2$**, and **$DR^3$**.
+    
+        ```{r}
+        commloss.fit4 <- lm(FGU~poly(DR,3)+CountryStatus, data = asiacomrisk)
+        summary(commloss.fit4) 
+        ```
+    f. Based on Adjusted R-squared and Residual Standard Error, which model fits the data the best? 
+    
+    * The model in (d) fits best because it has the highest adjusted R-squared and smallest residual standard error.
+    
+4. In this exercise, you will create simulated data, and you will fit multiple linear regression models to it. Make sure to use **set.seed(500)** prior to starting part (a).
+    a. Create a vector, **x1**, containing 1000 observations drawn from a Poisson distribution with lambda equal to 5.
+        ```{r}
+        set.seed(500)
+        x1 <- rpois(1000, 5)
+        ```
+    
+    b. Create a vector, **x2**, containing 1000 observations drawn from a uniform distribution with lower limit of 16 and upper limit of 90.
+        ```{r}
+        x2 <- runif(1000, 16, 90)
+        ```
+    
+    c. Create a vector, **eps**, containing 1000 observations drawn from a normal distribution with a mean of zero and a standard deviation of 400.
+        ```{r}
+        eps <- rnorm(1000, 0, sd = 400)
+        ```
+
+    d. Using **x1**, **x2**, and **eps**, generate a vector **y** according to the model $Y = 100 + 1000X_1 + 10X_2 + \epsilon$. What are the values of $\beta_0$, $\beta_1$, and $\beta_2$ in the lienar model?
+        ```{r}
+        y <- 100 + 1000*x1 + 10*x2 + eps
+        ```
+    e. Fit a least squares linear model to predict **y** using **x1** and **x2**. Comment on how $\hat{\beta}_0$, $\hat{\beta}_1$, and $\hat{\beta}_2$ compare to $\beta_0$, $\beta_1$, and $\beta_2$.
+        ```{r}
+        sim.fit <- lm(y~x1+x2)
+        summary(sim.fit)
+        ```
+
+    *  $\hat{\beta}_1$, and $\hat{\beta}_2$ are both fairly close to their true values. $\hat{\beta}_0$ is much farther from its true value.
+    f. Create a new vector **espi** that has a standard deviation of 4000 rather than 400 so that there is more noise in the data. Then fit a new least squares linear model to predict **y** using **x1** and **x2**. Comment on how the new values of $\hat{\beta}_0$, $\hat{\beta}_1$, and $\hat{\beta}_2$ compare to those obtained in (e). Make sure to use **set.seed(500)** prior to creating **epsi**.
+        ```{r}
+        set.seed(500)
+        epsi <- rnorm(1000, 0, sd = 4000)
+        yi <- 100 + 1000*x1 + 10*x2 + epsi
+        sim.fit2 <- lm(yi~x1+x2)
+        summary(sim.fit2)
+        ```
+    
+    * The new values of $\hat{\beta}_0$, $\hat{\beta}_1$, and $\hat{\beta}_2$ are much farther from their true values than they were in (e).
+    g. Create a new vector **espd** that has a standard deviation of 50 rather than 400 so that there is less noise in the data. Then fit a new least squares linear model to predict **y** using **x1** and **x2**. Comment on how the new values of $\hat{\beta}_0$, $\hat{\beta}_1$, and $\hat{\beta}_2$ compare to those obtained in (e). Make sure to use **set.seed(500)** prior to creating **epsd**.
+        ```{r}
+        set.seed(500)
+        epsd <- rnorm(1000, 0, sd = 50)
+        yd <- 100 + 1000*x1 + 10*x2 + epsd
+        sim.fit3 <- lm(yd~x1+x2)
+        summary(sim.fit3)
+        ```
+
+    * The new values of $\hat{\beta}_0$, $\hat{\beta}_1$, and $\hat{\beta}_2$ are closer to their true values than they were in (e).
+
+    h. What are the confidence intervals using a confidence level of 95% for $\beta_0$, $\beta_1$, and $\beta_2$ based on the original data set, the nosier data set, and the less noisy data set?
+        ```{r}
+        confint(sim.fit)
+        confint(sim.fit2)
+        confint(sim.fit3)
+        ```
+
+5. In this problem, you will develop a model to predict whether a claim occurs using the **ClaimsLong** data set in the **insuranceData** package.
+    a. Use the full data set to perform logistic regression with **claim** as the response and all other variables besides **numclaims** as predictors. Which predictors appear to be statistically significant?
+
+        ```{r}
+        library(insuranceData)
+        data("ClaimsLong")
+        head(ClaimsLong)
+        dim(ClaimsLong)
+        names(ClaimsLong)
+        attach(ClaimsLong)
+        summary(ClaimsLong)
+        cor(ClaimsLong)
+        claim.fit <- glm(claim~.-numclaims, data = ClaimsLong, family = binomial)
+        summary(claim.fit)
+        ```
+
+    * All the predictors are statistically significant.
+
+    b. Compute the confusion matrix, the training error rate, and the percent of actual claims predicted correctly. Explain what the confusion matrix is telling you about the types of mistakes made by the logistic regression model.
+    
+        ```{r}
+        claim.probs <- predict(claim.fit, type = "response")
+        claim.pred <- rep(0, length(claim.probs))
+        claim.pred[claim.probs > 0.5] <- 1
+        table(claim.pred, claim)
+        (102870)/length(claim)
+        mean(claim.pred != claim)
+        ```
+    
+    * The training error rate is 14.275%, and the percent of actual claims predicted correctly is 0%. Also, it appears that the logistic regression model only predicts a claim not occurring.
+
+    c. Change the threshold for the logistic regression model in (b) to predict a claim to 0.15. Compute the confusion matrix, the training error rate, and the percent of actual claims predicted correctly.
+
+        ```{r}
+        claim.pred2 <- rep(0, length(claim.probs))
+        claim.pred2[claim.probs > 0.15] <- 1
+        table(claim.pred2, claim)
+        mean(claim.pred2 != claim)
+        (5834)/(11296+5834)
+        ```
+
+    * The training error rate is 35.10%, and the percent of actual claims predicted correctly is 34.06%.
+
+    d. Split the data into a training set and a test set with the first 90000 observations in the training set and the rest in the test set.
+    
+        ```{r}
+        ClaimsLong.train <- ClaimsLong[1:90000,]
+        ClaimsLong.test <- ClaimsLong[90001:nrow(ClaimsLong),]
+        claim.test <- claim[90001:length(claim)]
+        ```
+    
+    e. Fit the logistic regression model using the training set. Compute the confusion matrix, the test error rate, and the percent of the actual claims predicted correctly based on the test data set.
+
+        ```{r}
+        claim.fit2 <- glm(claim~.-numclaims, data = ClaimsLong.train, family = binomial)
+        summary(claim.fit2)
+        claim.probs3 <- predict(claim.fit2, ClaimsLong.test, type = "response")
+        claim.pred3 <- rep(0, length(claim.probs3))
+        claim.pred3[claim.probs3 > 0.5] <- 1
+        table(claim.pred3, claim.test)
+        (25842)/length(claim.test)
+        mean(claim.pred3 != claim.test)
+        ```
+
+    * The test error rate is 13.86%, and the percent of actual claims predicted correctly is 0%.
+    
+    f. Change the threshold for the logistic regression model in (e) to predict a claim to 0.15. Compute the confusion matrix, the test error rate, and the percent of actual claims predicted correctly based on the test data set.
+
+        ```{r}
+        claim.pred4 <- rep(0, length(claim.probs3))
+        claim.pred4[claim.probs3 > 0.15] <- 1
+        table(claim.pred4, claim.test)
+        mean(claim.pred4 != claim.test)
+        1151/(1151+3007)
+        ```
+
+    * The test error rate is 31.99%, and the percent of actual claims predicted correctly is 27.68%.
+
+    g. Repeat (e) using K-nearest neighbors regression with K = 1 using **set.seed(500)**.
+    
+        ```{r}
+        library(class)
+        train.X <- ClaimsLong.train[,-(5:6)]
+        test.X <- ClaimsLong.test[,-(5:6)]
+        train.claim <- claim[1:90000]
+        set.seed(500)
+        knn.pred <- knn(train.X, test.X, train.claim, k = 1)
+        table(knn.pred, claim.test)
+        (25837)/length(claim.test)
+        mean(knn.pred != claim.test)
+        ```
+    
+    * The test error rate is 13.88%, and the percent of actual claims predicted correctly is 0%.
+
+    h. Repeat (e) using KNN regression with K = 5 using **set.seed(500)**
+    
+        ```{r}
+        set.seed(500)
+        knn.pred2 <- knn(train.X, test.X, train.claim, k = 5)
+        table(knn.pred2, claim.test)
+        (25842)/length(claim.test)
+        mean(knn.pred2 != claim.test)
+        ```
+    
+    * The test error rate is 13.86%, and the percent of actual claims predicted correctly is 0%.
+
+    i. Which model provides the best results based on test error rate, and which provides the best results based on the percent of actual claims predicted correctly?
+    
+    * The best models in terms of test error rate are logistic with 0.5 decision threshold to predict a claim and KNN with K = 3. Based on the percent of actual claims predicted correctly, logistic with a decision threshold of 0.15 is best.
+
+6. In this exercise, you will develop a model to predict whether a claim occurs using the **ClaimsLong** data set in the **dataCar** package.
+    a. Make the variables **veh_age**, **agecat**, and **clm** factors. Then split the data into a training set and a test set with the first 50000 observations in the training set and the rest in the test set. 
+
+        ```{r}
+        library(insuranceData)
+        data("dataCar")
+        head(dataCar)
+        dim(dataCar)
+        names(dataCar)
+        attach(dataCar)
+        summary(dataCar)
+        dataCar$veh_age <- as.factor(veh_age)
+        dataCar$agecat <- as.factor(agecat)
+        dataCar$clm <- as.factor(clm)
+        summary(dataCar)
+        dataCar.train <- dataCar[1:50000,]
+        dataCar.test <- dataCar[50001:nrow(dataCar),]
+        clm.test <- clm[50001:length(clm)]
+        ```
+
+    b. Fit the logistic regression model using the training set. Which predictors are statistically significant?
+
+        ```{r}
+        clm.fit <- glm(clm~veh_value+exposure+veh_age+gender+area+agecat, data = dataCar.train, family = binomial)
+        summary(clm.fit)
+        ```
+
+    * **veh_value**, **exposure**, and **agecat** are statistically significant.
+    
+    c. Fit a new logistic regression model that only contains the statistically significant predictors using the training set. Compute the confusion matrix, the test error rate, and the percent of the actual claims predicted correctly based on the test data set.
+    
+        ```{r}
+        clm.fit2 <- glm(clm~veh_value+exposure+agecat, data = dataCar.train, family = binomial)
+        summary(clm.fit2)
+        clm.probs <- predict(clm.fit2, dataCar.test, type = "response")
+        clm.pred <- rep(0, length(clm.probs))
+        clm.pred[clm.probs > 0.5] <- 1
+        table(clm.pred, clm.test)
+        (16540)/length(clm.test)
+        mean(clm.pred != clm.test)
+        ```
+    
+    * The test error rate is 7.37%, and the percent of actual claims predicted correctly is 0%.
+    
+    d. Change the threshold for the logistic regression model in (c) to predict a claim to 0.15. Compute the confusion matrix, the test error rate, and the percent of actual claims predicted correctly based on the test data set.
+
+        ```{r}
+        clm.pred2 <- rep(0, length(clm.probs))
+        clm.pred2[clm.probs > 0.15] <- 1
+        table(clm.pred2, clm.test)
+        (15728+111)/length(clm.test)
+        mean(clm.pred2 != clm.test)
+        111/(1204+111)
+        ```
+
+    * The test error rate is 11.30%, and the percent of actual claims predicted correctly is 8.44%.
+
+    e. Repeat (c) using KNN regression with K = 1 using **set.seed(500)**.
+    
+        ```{r}
+        library(class)
+        train.X <- dataCar.train[,c(1,2,10)]
+        test.X <- dataCar.test[,c(1,2,10)]
+        train.clm <- clm[1:50000]
+        set.seed(500)
+        knn.pred <- knn(train.X, test.X, train.clm, k = 1)
+        table(knn.pred, clm.test)
+        (15283+123)/length(clm.test)
+        mean(knn.pred != clm.test)
+        123/(1192+123)
+        ```
+    
+    * The test error rate is 13.72%, and the percent of actual claims predicted correctly is 9.35%.
+
+    f. Repeat (c) using KNN regression with K = 3 using **set.seed(500)**
+    
+        ```{r}
+        set.seed(500)
+        knn.pred2 <- knn(train.X, test.X, train.clm, k = 3)
+        table(knn.pred2, clm.test)
+        (16230+37)/length(clm.test)
+        mean(knn.pred2 != clm.test)
+        37/(1278+37)
+        ```
+    
+    * The test error rate is 8.90%, and the percent of actual claims predicted correctly is 2.81%.
+
+    i. Which model provides the best reults based on test error rate, and which provides the best results based on the percent of actual claims predicted correctly?
+    
+    * The best model in terms of test error rate is the logistic regression model with 0.5 decision threshold to predict a claim. Based on the percent of actual claims predicted correctly, the KNN regresion model with K = 1 is best.
