@@ -1,0 +1,527 @@
+---
+title: "Linear Model Selection and Regularization"
+output: html_notebook
+---
+# Quesiton 1 
+
+Consider the data **usexpense_data** in which we take Risk-Based Capital **RBC** as the response variable. A description of the data can be found in this link  http://cas.uqam.ca/pub/R/web/CASdatasets-manual.pdf 
+
+Here is the set up for the data: 
+```{r}
+#install.packages("CASdatasets", repos = "http://cas.uqam.ca/pub/R/", type="source")
+library(CASdatasets)
+data(usexpense)
+usexpense_data <- usexpense[-c(1,2,3,4)]
+head(usexpense_data)
+```
+## (a) Omit all the **NA** rows in the data and keep the data under the same name **usexpense_data**
+
+```{r}
+usexpense_data=na.omit(usexpense_data)
+```
+
+
+
+## (b)  Write the independent variables in a model matrix form, call it **x** and the response as a vector, call it **y** for the data **usexpense_data**. 
+
+
+```{r}
+x=model.matrix(RBC~.,usexpense_data)[,-1]
+y=usexpense_data$RBC
+```
+
+## (c) Set a seed of $123$ and split the data into a training set and a test set. The training set will contain $80\%$ of the data points, and the test set will include the remaining observations. 
+
+```{r}
+## 80% of the sample size
+## set the seed to make your partition reproducible
+set.seed(123)
+sample_size <- floor(0.80 * nrow(usexpense_data))
+train=sample(1:nrow(usexpense_data),sample_size,replace=FALSE)
+```
+
+
+
+## (d) ) Using **glmnet** package, fit a ridge regression model on the training set, where the tuning parameter $\lambda$ is chosen by 10 folds cross-validation. Report the test error, call it **ridge.mse**, obtained and store ridge coefficients, call it **ridge.coef**. Plot the tuning parameters $\lambda$ versus cross-validation error. 
+
+```{r}
+#Find the optimal lambda value via cross validation
+library(glmnet)
+cv.out=cv.glmnet(x[train,],y[train],alpha=0, nfolds = 10, family="gaussian", type.measure="mse", standardize=TRUE)
+bestlam=cv.out$lambda.min
+plot(cv.out)
+#Fit a ridge regression model
+ridge.mod=glmnet(x,y,alpha = 0, lambda=bestlam, family="gaussian")
+
+
+#Compute the test error w/ lambda chosen by cross validation
+ridge.pred=predict(ridge.mod,s=bestlam,newx=x[-train,])
+ridge.mse=round(mean((ridge.pred-y[-train])^2))
+#Store ridge coefficients
+ridge.coef=predict(ridge.mod,type="coefficients",s=bestlam)
+ridge.coef
+
+```
+
+## (e) Using **glmnet** package, fit a lasso regression model on the training set with $\lambda$ chosen by 10 folds cross-validation. Report the test error, call it **lasso.mse**, obtained and store lasso coefficients, call it **lasso.coef**. Plot the tuning parameters $\lambda$ versus cross-validation error. 
+```{r}
+#Find the optimal lambda value via cross validation
+cv.out=cv.glmnet(x[train,],y[train],alpha=1, nfolds = 10, family="gaussian",type.measure="mse", standardize=TRUE)
+bestlam=cv.out$lambda.min
+plot(cv.out)
+#Train the model
+lasso.mod=glmnet(x,y,alpha = 1, lambda=bestlam, family="gaussian")
+#Compute the test error
+lasso.pred=predict(lasso.mod,s=bestlam,newx=x[-train,])
+lasso.mse=round(mean((lasso.pred-y[-train])^2))
+#Store lasso coefficients
+lasso.coef=predict(lasso.mod,type="coefficients",s=bestlam)
+lasso.coef
+```
+
+## (f) Using **glmnet** package, fit an elastic net regression model on the training set with $\lambda$ chosen by 10 folds cross-validation. Report the test error, call it **enet.mse**, obtained and store elastic net coefficients, call it **enet.coef**. Plot the tuning parameters $\lambda$ versus cross-validation error. 
+```{r}
+#Find the optimal lambda value via cross validation
+cv.out=cv.glmnet(x[train,],y[train],alpha=0.3, nfolds = 10, family="gaussian",type.measure="mse", standardize=TRUE)
+bestlam=cv.out$lambda.min
+plot(cv.out)
+#Train the model
+enet.mod=glmnet(x,y,alpha = 0.3, lambda=bestlam, family="gaussian")
+#Compute the test error
+enet.pred=predict(enet.mod,s=bestlam,newx=x[-train,])
+enet.mse=round(mean((enet.pred-y[-train])^2))
+#Store elastic net coefficients
+enet.coef=predict(enet.mod,type="coefficients",s=bestlam)
+enet.coef
+```
+
+## (g) Creat a data frame that includes the coefficients of ridge, lasso and elastic net along with the error term of each one of them.  
+
+```{r}
+coefs=cbind(as.vector(ridge.coef),as.vector(lasso.coef),as.vector(enet.coef))
+colnames(coefs)=c("ridge","lasso", "enet")
+mse <- c(ridge.mse, lasso.mse, enet.mse)
+rbind(coefs,mse)
+```
+# Quesiton 2 
+
+Consider the data **hurricanehist** that can be loaded through the **CASdatasets** package. A description of that data can be found in this link http://cas.uqam.ca/pub/R/web/CASdatasets-manual.pdf
+
+The response variable **Region** is a multinomial variable that shows the region of the Hurricane. The goal of the study is to build a model that correctly classifies the storm maximum wind speeds based on the region. Fit a logistic regression model.
+
+
+Here is the set up for the data :
+
+```{r}
+
+library(CASdatasets)
+data(hurricanehist)
+head(hurricanehist)
+hurricanehist_data= hurricanehist[-1]
+
+```
+
+
+## (a) Omit all the **NA** rows in the data and keep the data under the same name **hurricanehist_data**
+
+```{r}
+hurricanehist_data=na.omit(hurricanehist_data)
+```
+
+
+## (b) Write the independent  variables in a model matrix form , call it **x** and the response as a vector, call it **y** for the data **hurricanehist_data**. 
+```{r}
+x=model.matrix(Region ~.,hurricanehist_data)[,-1];
+y=as.factor(hurricanehist_data$Region)
+```
+
+
+## (c) Set a seed of $123$ and split the data into a training set and a test set. The training set will contain $50\%$ of the data points, and the test set will include the remaining observations.  
+```{r}
+set.seed(123)
+sample_size <- floor(0.50 * nrow(hurricanehist_data))
+train=sample(1:nrow(hurricanehist_data),sample_size,replace=FALSE)
+```
+
+
+## (d) Using **glmnet** package, fit a ridge logistic model on the training set, where the tuning parameter $\lambda$ is chosen by 10 folds cross-validation. Report ridge coefficients, call it **ridge.coef**. 
+```{r}
+#Find the optimal lambda value via cross validation
+cv.out=cv.glmnet(x[train,],y[train],alpha=0, nfolds = 10, family="multinomial", type.measure="class", standardize=TRUE)
+bestlam=cv.out$lambda.min
+
+#Fit a ridge regression model
+ridge.mod=glmnet(x,y,alpha = 0, lambda=bestlam, family="multinomial")
+
+
+#Compute the test error w/ lambda chosen by cross validation
+ridge.pred=predict(ridge.mod,s=bestlam,newx=x[-train,])
+#Store ridge coefficients
+ridge.coef=predict(ridge.mod,type="coefficients",s=bestlam)
+ridge.coef
+```
+
+
+
+## (e) Using **glmnet** package, fit a lasso logistic  model on the training set with $\lambda$ chosen by 10 folds cross-validation. Report the lasso coefficients, call it **lasso.coef**. 
+```{r}
+#Find the optimal lambda value via cross validation
+cv.out=cv.glmnet(x[train,],y[train],alpha=1, nfolds = 10, family="multinomial",type.measure="class", standardize=TRUE)
+bestlam=cv.out$lambda.min
+
+#Train the model
+lasso.mod=glmnet(x,y,alpha = 1, lambda=bestlam, family="multinomial")
+#Compute the test error
+lasso.pred=predict(lasso.mod,s=bestlam,newx=x[-train,])
+#Store lasso coefficients
+lasso.coef=predict(lasso.mod,type="coefficients",s=bestlam)
+lasso.coef
+```
+
+
+
+## (f) Using **glmnet** package, fit an elastic net logistic regression model on the training set with $\lambda$ chosen by 10 folds cross-validation. Report the elastic coefficients, call it **enet.coef**. 
+```{r}
+#Find the optimal lambda value via cross validation
+cv.out=cv.glmnet(x[train,],y[train],alpha=0.3, nfolds = 10, family="multinomial",type.measure="class", standardize=TRUE)
+bestlam=cv.out$lambda.min
+
+#Train the model
+enet.mod=glmnet(x,y,alpha = 0.3, lambda=bestlam, family="multinomial")
+
+#Compute the test error
+enet.pred=predict(enet.mod,s=bestlam,newx=x[-train,])
+#Store lasso coefficients
+enet.coef=predict(enet.mod,type="coefficients",s=bestlam)
+enet.coef
+```
+# Question 3 
+
+Consider the data **fremotor1prem_data** in which we take the total premium **PremTot** as the response variable. A description of the data can be found in this link  http://cas.uqam.ca/pub/R/web/CASdatasets-manual.pdf 
+
+Here is the set up of the data:
+
+```{r}
+library(CASdatasets)
+data(fremotor1prem)
+head(fremotor1prem)
+fremotor1prem_data <- fremotor1prem[-c(1,31)]
+```
+
+
+
+## (a) Omit all the **NA** rows, if any, in the data and keep the data under the same name **hurricanehist_data**
+
+```{r}
+fremotor1prem_data=na.omit(fremotor1prem_data)
+```
+
+
+## (b) Write the independent variables in a model matrix form, call it **x** and the response as a vector, call it **y** for the data **fremotor1prem_data**. 
+```{r}
+x=model.matrix(PremTot ~.,fremotor1prem_data)[,-1]
+y=fremotor1prem_data$PremTot
+```
+
+
+## (c) Set a seed of $123$ and split the data into a training set and a test set. The training set will contain $70\%$ of the data points, and the test set will include the remaining observations.  
+```{r}
+set.seed(123)
+sample_size <- floor(0.70 * nrow(fremotor1prem_data))
+train=sample(1:nrow(fremotor1prem_data),sample_size,replace=FALSE)
+```
+
+
+## (d) Using **glmnet** package, fit an elastic net regression model on the training set, where the tuning parameter $\lambda$ is chosen by 10 folds cross-validation. Choose the Elastic net mixing parameter i.e $\alpha$ that obtain the smallest MSE. Remember that Elastic net takes $\alpha$ values greater than $0$ and less than $1$ exclusive. Show how you obtained that $\alpha$.  
+
+```{r}
+
+for (i in seq(0, 1, .1)){ 
+    enet.mse <- data.frame()
+    #Using cross-validation to choose the tuning parameter ??
+    set.seed (123)
+    cv.out=cv.glmnet(x[train,],y[train],alpha=i, nfolds = 10, 
+                          family="gaussian",type.measure="mse", standardize=TRUE)
+    bestlam=cv.out$lambda.min
+    #Creating training model using lasso regression
+    enet.mod=glmnet(x,y,alpha = i, lambda=bestlam, family="gaussian")
+    #Printing out
+    #Compute the test error
+    enet.pred=predict(enet.mod,s=bestlam,newx=x[-train,])
+    enet.mse=mean((enet.pred-y[-train])^2)
+    print(c(enet.mse,i))
+   
+}
+
+```
+# Question 4 
+
+Consider the data "wholesale-customers.csv". This dataset refers to clients of a wholesale distributor. It includes the annual spending in monetary units (m.u.) on diverse product categories.
+
+It is part of a larger database published with the following paper:
+
+Abreu, N. (2011). Analise do perfil do cliente Recheio e desenvolvimento de um sistema promocional. Mestrado em Marketing, ISCTE-IUL, Lisbon.
+
+The data consists of annual spending on different categories of products by each retailer,
+along with corresponding data on the sales channel (Hotel/Restaurant/Cafe = 1 vs. Retail = 2) and the region (Lisbon = 1, Oporto = 2, or Other = 3) of the retailer.
+
+
+Fit logistic lasso and elastic net regression to identify the coefficients that use spending on different categories of products to predict the sales channel. Split randomly the data into a training set and a test set. The training set will contain $70\%$ of the data points and the test set will contain the remaining observations.  Set a seed of $123$ to make your partition reproducible. 
+
+## (a) Choose the tuning parameters $\lambda$ using 10 folds cross-validation. Include plot of tuning parameters versus cross-validation error.
+
+```{r}
+library(glmnet)
+wholesale_data <- read.csv("wholesale_customers.csv", header=TRUE, sep=",")
+wholesale_data=na.omit(wholesale_data)
+head(wholesale_data)
+
+x=model.matrix(Channel ~.,wholesale_data)[,-1];
+y=as.factor(wholesale_data$Channel)
+ 
+set.seed(123)
+sample_size <- floor(0.70 * nrow(wholesale_data))
+train=sample(1:nrow(wholesale_data),sample_size,replace=FALSE)
+
+
+cv.out=cv.glmnet(x[train,],y[train],alpha=0, nfolds = 10, family="binomial", type.measure="class", standardize=TRUE)
+plot(cv.out)
+bestlam=cv.out$lambda.min
+bestlam
+```
+
+## (b) Include the coefficients computed. 
+```{r}
+#Find the optimal lambda value via cross validation
+cv.out=cv.glmnet(x[train,],y[train],alpha=1, nfolds = 10, family="multinomial",type.measure="class", standardize=TRUE)
+bestlam=cv.out$lambda.min
+
+#Train the model
+lasso.mod=glmnet(x,y,alpha = 1, lambda=bestlam, family="binomial")
+#Compute the test error
+lasso.pred=predict(lasso.mod,s=bestlam,newx=x[-train,])
+#Store lasso coefficients
+lasso.coef=predict(lasso.mod,type="coefficients",s=bestlam)
+lasso.coef
+
+
+#Find the optimal lambda value via cross validation
+cv.out=cv.glmnet(x[train,],y[train],alpha=0.3, nfolds = 10, family="multinomial",type.measure="class", standardize=TRUE)
+bestlam=cv.out$lambda.min
+
+#Train the model
+enet.mod=glmnet(x,y,alpha = 0.3, lambda=bestlam, family="multinomial")
+
+#Compute the test error
+enet.pred=predict(enet.mod,s=bestlam,newx=x[-train,])
+#Store lasso coefficients
+enet.coef=predict(enet.mod,type="coefficients",s=bestlam)
+enet.coef
+```
+# Question 5
+
+In matrix terms, the initial quadratic loss function becomes
+$$
+\begin{equation}
+\min_\beta (Y-\beta^T X)^T(Y-\beta^T X)+\lambda \beta^T \beta
+\end{equation}
+$$
+Now note that 
+$$
+\begin{equation}
+\frac{\partial (Y-\beta^T X)^T (Y-\beta^T X)}{\partial \beta}=-2X^T(Y-\beta^T X)
+\end{equation}
+$$
+and
+$$
+\begin{equation}
+\frac{\partial \lambda \beta^T \beta}{\partial \beta}=2\lambda\beta.
+\end{equation}
+$$
+Together we get to the first order condition
+$$
+\begin{equation}
+X^TY = X^TX\beta + \lambda\beta.
+\end{equation}
+$$
+Isolating $\beta$ yields the Ridge estimator, that is, 
+$$
+\begin{equation}
+\hat{\beta}_{Ridge} = (X^TX+ \lambda I )^{-1}X^T Y.
+\end{equation}
+$$
+Now, consider the data below **eqlist_data** in which the magnitude **mag** is taking as the response variable. Omit all the **NA** rows, if any. Description of the data can be found in this link  http://cas.uqam.ca/pub/R/web/CASdatasets-manual.pdf 
+
+Here is the set up of that data:
+
+```{r}
+library(CASdatasets)
+data(eqlist)
+head(eqlist)
+eqlist_data <- eqlist[-c(1,6,7,11:16)]
+head(eqlist_data)
+eqlist_data=na.omit(eqlist_data)
+```
+
+Use the matrix format to write your own function **fitRidge** to estimate the coefficient for a Ridge regression i.e  $\hat{\beta}_{Ridge}$ . Your function needs to take three parameters: $Y$ (response), $X$ (predictor), and $\lambda$ (tuning parameter). Choose $\lambda$ to be $0.10$.   
+
+```{r}
+x=as.matrix(eqlist_data[-4])
+y=as.vector(eqlist_data$mag)
+
+
+fitRidge <- function(X, y, lambda){
+  # Add intercept column to X:
+  X <- cbind(1, X)
+  # Calculate penalty matrix:
+  lambda.diag <- lambda * diag(dim(X)[2])
+  # Apply formula for Ridge Regression:
+  return(solve(t(X) %*% X + lambda.diag)%*%t(X) %*% y)
+  }
+fitRidge(x,y,0.10)
+```
+
+# Question 6
+
+Use lasso regression to predict the total claim amount **ClaimAmount**
+based on a few of predictor measurements. This data set is taken from the **CASdatasets** package. Here is the set up for the data : 
+
+```{r}
+library(CASdatasets)
+data(swmotorcycle)
+head(swmotorcycle)
+swmotorcycle_data <- swmotorcycle[-c(3,4)]
+head(swmotorcycle_data)
+```
+
+Omit all the **NA** rows, if any. Description of the data can be found in this link  http://cas.uqam.ca/pub/R/web/CASdatasets-manual.pdf. Set a seed of $123$ and split the data into a training set and a test set. The training set will contain $70\%$ of the data points and the test set will contain the remaining observations.
+
+Via 5-fold cross-validation you have computed $2$ values of the tuning parameter $\lambda$: 
+$\lambda_{Ridge}$.min and $\lambda_{Ridge}$.1se. Using the usual rule (min) or the one standard error rule (1se) to select $\lambda$. Now, fit lasso regression once with $\lambda_{Ridge}$.min and then with $\lambda_{Ridge}$.1se. Report the coefficient estimates and the error at the appropriate values of $\lambda$. That is, you will report two coefficient vectors coming from ridge regression with $\lambda = \lambda$ ridge min and $\lambda = \lambda$ ridge 1se. Comment on the results? 
+
+```{r}
+swmotorcycle_data=na.omit(swmotorcycle_data)
+
+x=model.matrix(ClaimAmount ~.,swmotorcycle_data)[,-1]
+y=swmotorcycle_data$ClaimAmount
+
+
+
+
+
+## set the seed to make your partition reproducible 
+##80% of the sample size
+set.seed(123)
+sample_size <- floor(0.70 * nrow(swmotorcycle_data))
+train=sample(1:nrow(swmotorcycle_data),sample_size,replace=FALSE)
+
+
+#Find the optimal lambda value via cross validation using 
+cv.out=cv.glmnet(x[train,],y[train],alpha=1, nfolds = 5, family="gaussian",type.measure="mse", standardize=TRUE)
+bestlam_lambda.min=cv.out$lambda.min
+plot(cv.out)
+#Train the model
+lasso.mod=glmnet(x,y,alpha = 1, lambda=bestlam_lambda.min, family="gaussian")
+#Compute the test error
+lasso.pred=predict(lasso.mod,s=bestlam_lambda.min,newx=x[-train,])
+lasso.mse.lambda.min=round(mean((lasso.pred-y[-train])^2))
+#Store lasso coefficients
+lasso.coef.lambda.min=predict(lasso.mod,type="coefficients",s=bestlam_lambda.min)
+lasso.coef.lambda.min=round(lasso.coef.lambda.min,6)
+
+
+#Find the optimal lambda value via cross validation using 
+cv.out=cv.glmnet(x[train,],y[train],alpha=1, nfolds = 5, family="gaussian",type.measure="mse", standardize=TRUE)
+bestlam_lambda.1se=cv.out$lambda.1se
+plot(cv.out)
+#Train the model
+lasso.mod=glmnet(x,y,alpha = 1, lambda=bestlam_lambda.1se, family="gaussian")
+#Compute the test error
+lasso.pred=predict(lasso.mod,s=bestlam_lambda.1se,newx=x[-train,])
+lasso.mse.lambda.1se=round(mean((lasso.pred-y[-train])^2))
+#Store lasso coefficients
+lasso.coef.lambda.1se=predict(lasso.mod,type="coefficients",s=bestlam_lambda.1se)
+lasso.coef.lambda.1se=round(lasso.coef.lambda.1se,6)
+
+
+coefs=cbind(as.vector(lasso.coef.lambda.min),as.vector(lasso.coef.lambda.1se))
+colnames(coefs)=c("lasso.min.lambda", "lasso.1st.lambda")
+mse <- c(lasso.mse.lambda.min, lasso.mse.lambda.1se)
+rbind(coefs,mse)
+```
+
+# Question 7 
+
+The multiresponse Gaussian (normal) family is obtained using **family = "mgaussian"** option in **glmnet**. It is very similar to the single-response case **family = "gaussian"**, which is the default choice in **glmnet**. This can be useful when there are a number of (correlated) responses. 
+
+Now, consider Canadian life insurance data **canlifins**. So, you have a matrix **y** consist of two columns **EntryAgeM** and ** EntryAgeF** (response) and the rest of the variables are your **x** matrix (explanatory variables). This data set is taken from the **CASdatasets** package. 
+
+Fit a multi-response Gaussian model, using ridge, lasso, and elastic net penalty. Obtain the estimated coefficients of each model. 
+
+
+```{r}
+library(CASdatasets)
+data(canlifins)
+head(canlifins)
+canlifins_data <- canlifins
+head(canlifins_data)
+canlifins_data$DeathTimeF
+
+canlifins_data=na.omit(canlifins_data)
+
+
+
+x=as.matrix(canlifins_data[-c(1,2)]);x
+y=as.matrix(canlifins_data[-c(3,4,5)]);y
+
+
+#Find the optimal lambda value via cross validation
+library(glmnet)
+cv.out=cv.glmnet(x,y,alpha=0, nfolds = 10, family="mgaussian")
+bestlam=cv.out$lambda.min
+plot(cv.out)
+#Fit a ridge regression model
+ridge.mod=glmnet(x,y,alpha = 0, lambda=bestlam, family="mgaussian")
+
+
+#Compute the test error w/ lambda chosen by cross validation
+ridge.pred=predict(ridge.mod,s=bestlam,newx=x[1:50,])
+#Store ridge coefficients
+ridge.coef=predict(ridge.mod, type="coefficients",s=bestlam)
+ridge.coef
+
+
+#Find the optimal lambda value via cross validation
+cv.out=cv.glmnet(x,y,alpha=1, nfolds = 10, family="mgaussian")
+bestlam=cv.out$lambda.min
+plot(cv.out)
+#Train the model
+lasso.mod=glmnet(x,y,alpha = 1, lambda=bestlam, family="mgaussian")
+#Compute the test error
+lasso.pred=predict(lasso.mod,s=bestlam,newx=x[1:50,])
+#Store lasso coefficients
+lasso.coef=predict(lasso.mod,type="coefficients",s=bestlam)
+lasso.coef
+
+
+
+
+#Find the optimal lambda value via cross validation
+cv.out=cv.glmnet(x,y,alpha=0.3, nfolds = 10, family="mgaussian")
+bestlam=cv.out$lambda.min
+plot(cv.out)
+#Train the model
+enet.mod=glmnet(x,y,alpha = 0.3, lambda=bestlam, family="mgaussian")
+#Compute the test error
+enet.pred=predict(enet.mod,s=bestlam,newx=x[1:50,])
+#Store elastic net coefficients
+enet.coef=predict(enet.mod,type="coefficients",s=bestlam)
+enet.coef
+```
+
+
+
+
+
+
+
